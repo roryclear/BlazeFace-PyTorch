@@ -7,40 +7,39 @@ from blazeface import BlazeFace
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-def plot_detections(img, detections, with_keypoints=True):
-    fig, ax = plt.subplots(1, figsize=(10, 10))
-    ax.grid(False)
-    ax.imshow(img)
-    
+def save_detections(img, detections, output_path="output.jpg"):
+    # Convert tensor to numpy if needed
     if isinstance(detections, torch.Tensor):
         detections = detections.cpu().numpy()
 
+    # Ensure detections are 2D
     if detections.ndim == 1:
         detections = np.expand_dims(detections, axis=0)
 
+    # Make a copy of the image (so original isn't modified)
+    img_out = img.copy()
+
+    h, w = img.shape[:2]
+
     print("Found %d faces" % detections.shape[0])
-        
+
     for i in range(detections.shape[0]):
-        ymin = detections[i, 0] * img.shape[0]
-        xmin = detections[i, 1] * img.shape[1]
-        ymax = detections[i, 2] * img.shape[0]
-        xmax = detections[i, 3] * img.shape[1]
+        ymin = int(detections[i, 0] * h)
+        xmin = int(detections[i, 1] * w)
+        ymax = int(detections[i, 2] * h)
+        xmax = int(detections[i, 3] * w)
 
-        rect = patches.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,
-                                 linewidth=1, edgecolor="r", facecolor="none", 
-                                 alpha=detections[i, 16])
-        ax.add_patch(rect)
+        # Draw rectangle (red box)
+        cv2.rectangle(
+            img_out,
+            (xmin, ymin),
+            (xmax, ymax),
+            color=(0, 0, 255),  # BGR: red
+            thickness=2
+        )
 
-        if with_keypoints:
-            for k in range(6):
-                kp_x = detections[i, 4 + k*2    ] * img.shape[1]
-                kp_y = detections[i, 4 + k*2 + 1] * img.shape[0]
-                circle = patches.Circle((kp_x, kp_y), radius=0.5, linewidth=1, 
-                                        edgecolor="lightskyblue", facecolor="none", 
-                                        alpha=detections[i, 16])
-                ax.add_patch(circle)
-        
-    plt.show()
+    # Save image
+    cv2.imwrite(output_path, img_out)
 
 gpu = "cpu"
 
@@ -48,7 +47,6 @@ back_net = BlazeFace(back_model=True).to(gpu)
 back_net.load_weights("blazefaceback.pth")
 back_net.load_anchors("anchorsback.npy")
 
-# Optionally change the thresholds:
 back_net.min_score_thresh = 0.75
 back_net.min_suppression_threshold = 0.3
 
@@ -66,9 +64,9 @@ img = cv2.copyMakeBorder(
     value=[0, 0, 0]
 )
 
-
+img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 back_detections = back_net.predict_on_image(img)
 print(back_detections.shape)
 print(back_detections)
 
-plot_detections(img, back_detections)
+save_detections(img, back_detections)
