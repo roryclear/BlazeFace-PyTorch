@@ -44,22 +44,31 @@ def plot_detections(img, detections, with_keypoints=True):
 
 gpu = "cpu"
 
-front_net = BlazeFace().to(gpu)
-front_net.load_weights("blazeface.pth")
-front_net.load_anchors("anchors.npy")
 back_net = BlazeFace(back_model=True).to(gpu)
 back_net.load_weights("blazefaceback.pth")
 back_net.load_anchors("anchorsback.npy")
 
 # Optionally change the thresholds:
-front_net.min_score_thresh = 0.75
-front_net.min_suppression_threshold = 0.3
+back_net.min_score_thresh = 0.75
+back_net.min_suppression_threshold = 0.3
 
-img = cv2.imread("1face.png")
+img = cv2.imread("messi.webp")
 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-front_detections = front_net.predict_on_image(img)
-print(front_detections.shape)
-print(front_detections)
+img = cv2.copyMakeBorder(
+    cv2.resize(img, (int(img.shape[1] * min(256/img.shape[1], 256/img.shape[0])),
+                     int(img.shape[0] * min(256/img.shape[1], 256/img.shape[0])))),
+    top=(256 - int(img.shape[0] * min(256/img.shape[1], 256/img.shape[0]))) // 2,
+    bottom=(256 - int(img.shape[0] * min(256/img.shape[1], 256/img.shape[0]))) - (256 - int(img.shape[0] * min(256/img.shape[1], 256/img.shape[0]))) // 2,
+    left=(256 - int(img.shape[1] * min(256/img.shape[1], 256/img.shape[0]))) // 2,
+    right=(256 - int(img.shape[1] * min(256/img.shape[1], 256/img.shape[0]))) - (256 - int(img.shape[1] * min(256/img.shape[1], 256/img.shape[0]))) // 2,
+    borderType=cv2.BORDER_CONSTANT,
+    value=[0, 0, 0]
+)
 
-plot_detections(img, front_detections)
+
+back_detections = back_net.predict_on_image(img)
+print(back_detections.shape)
+print(back_detections)
+
+plot_detections(img, back_detections)
